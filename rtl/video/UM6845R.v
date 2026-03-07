@@ -44,6 +44,7 @@ module UM6845R
 
 	output    [13:0] MA,
 	output     [4:0] RA,
+	output     [3:0] hsync_width,
 	// signals to adjust the phantom lines and start of video output (left colums)
 	input 			tandy_16_gfx,
 	input  			composite_on,
@@ -70,6 +71,7 @@ assign FIELD = ~field & interlace[0];
 
 assign MA = row_addr_r;
 assign RA = line | (field & interlace[0]);
+assign hsync_width = R3_h_sync_width;
 
 assign DE = de[R8_skew & ~{2{CRTC_TYPE}}];
 

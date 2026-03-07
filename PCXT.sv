@@ -247,8 +247,9 @@ module PCXT
 		//"P3O12,Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%;",
 		//"P3O89,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 		//"P3OT,Border,No,Yes;",
-		"P3O4,Video Output,CGA/Tandy,MDA;",
+		"P3O4,Video Output,CGA/Tandy,Hercules;",
 		"P3OEG,Display,Full Color,Green,Amber,B&W,Red,Blue,Fuchsia,Purple;",
+		"P3Omn,Hercules Phosphor,Green,Amber,B&&W;",
 		"P3Oh,Composite Blending,No,Yes;",
 		"P3Oi,Composite (DB15 green),Off,On;",
 		"P3Ol,VGA+Compos(1pin no.osd),Off,On;",
@@ -310,6 +311,7 @@ module PCXT
     //wire composite = status[52] | xtctl[0];
 	//wire [1:0] scale = status[2:1];
     wire mda_mode = status[4] | xtctl[5];
+    wire [1:0] hgc_phosphor = status[49:48]; // 0=green, 1=amber, 2=b&w
     wire [2:0] screen_mode = status[16:14];
     //wire [1:0] ar = status[9:8];
     //wire border = status[29] | xtctl[1];
@@ -1147,7 +1149,9 @@ module PCXT
 		.enable_cga                         (1'b1),
 		.clk_vga_mda                        (clk_56_875),
 		.enable_mda                         (1'b1),
-		.mda_rgb                            (2'b10), // always B&W - monochrome monitor tint handled down below
+		.mda_rgb                            (hgc_phosphor),
+	//	.hgc_grph_mode                      (),
+	//	.hgc_grph_page                      (),
 	//	.de_o                               (VGA_DE),
 		.VGA_R                              (r_in),
 		.VGA_G                              (g_in),

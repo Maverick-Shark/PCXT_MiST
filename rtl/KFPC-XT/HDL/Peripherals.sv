@@ -32,6 +32,8 @@ module PERIPHERALS #(
         input   logic           clk_vga_mda,
         input   logic           enable_mda,
         input   logic   [1:0]   mda_rgb,
+        output  logic           hgc_grph_mode,
+        output  logic           hgc_grph_page,
         output  logic           de_o,
         output  logic   [5:0]   VGA_R,
         output  logic   [5:0]   VGA_G,
@@ -796,7 +798,7 @@ end
     logic  [16:0]  video_ram_address;
     logic  [7:0]   video_ram_data;
     logic          video_memory_write_n;
-    logic          mda_mem_select_1;
+    logic          hgc_mem_select_1;
     logic          cga_mem_select_1;
     logic          video_mem_select_1;
     logic  [14:0]  video_io_address;
@@ -804,18 +806,18 @@ end
     logic          video_io_write_n;
     logic          video_io_read_n;
     logic          video_address_enable_n;
-    logic  [14:0]  mda_io_address_1;
-    logic  [14:0]  mda_io_address_2;
-    logic  [7:0]   mda_io_data_1;
-    logic  [7:0]   mda_io_data_2;
-    logic          mda_io_write_n_1;
-    logic          mda_io_write_n_2;
-    logic          mda_io_write_n_3;
-    logic          mda_io_read_n_1;
-    logic          mda_io_read_n_2;
-    logic          mda_io_read_n_3;
-    logic          mda_address_enable_n_1;
-    logic          mda_address_enable_n_2;
+    logic  [14:0]  hgc_io_address_1;
+    logic  [14:0]  hgc_io_address_2;
+    logic  [7:0]   hgc_io_data_1;
+    logic  [7:0]   hgc_io_data_2;
+    logic          hgc_io_write_n_1;
+    logic          hgc_io_write_n_2;
+    logic          hgc_io_write_n_3;
+    logic          hgc_io_read_n_1;
+    logic          hgc_io_read_n_2;
+    logic          hgc_io_read_n_3;
+    logic          hgc_address_enable_n_1;
+    logic          hgc_address_enable_n_2;
     logic  [14:0]  cga_io_address_1;
     logic  [14:0]  cga_io_address_2;
     logic  [7:0]   cga_io_data_1;
@@ -846,7 +848,7 @@ end
         video_ram_address       <= address[16:0];
         video_ram_data          <= internal_data_bus;
         video_memory_write_n    <= memory_write_n;
-        mda_mem_select_1        <= mda_mem_select;
+        hgc_mem_select_1        <= mda_mem_select;
         cga_mem_select_1        <= cga_mem_select;
         video_mem_select_1      <= video_mem_select;
 
@@ -857,18 +859,18 @@ end
 
     always_ff @(posedge clk_vga_mda)
     begin
-        mda_io_address_1        <= video_io_address;
-        mda_io_address_2        <= mda_io_address_1;
-        mda_io_data_1           <= video_io_data;
-        mda_io_data_2           <= mda_io_data_1;
-        mda_io_write_n_1        <= video_io_write_n;
-        mda_io_write_n_2        <= mda_io_write_n_1;
-        mda_io_write_n_3        <= mda_io_write_n_2;
-        mda_io_read_n_1         <= video_io_read_n;
-        mda_io_read_n_2         <= mda_io_read_n_1;
-        mda_io_read_n_3         <= mda_io_read_n_2;
-        mda_address_enable_n_1  <= video_address_enable_n;
-        mda_address_enable_n_2  <= mda_address_enable_n_1;
+        hgc_io_address_1        <= video_io_address;
+        hgc_io_address_2        <= hgc_io_address_1;
+        hgc_io_data_1           <= video_io_data;
+        hgc_io_data_2           <= hgc_io_data_1;
+        hgc_io_write_n_1        <= video_io_write_n;
+        hgc_io_write_n_2        <= hgc_io_write_n_1;
+        hgc_io_write_n_3        <= hgc_io_write_n_2;
+        hgc_io_read_n_1         <= video_io_read_n;
+        hgc_io_read_n_2         <= hgc_io_read_n_1;
+        hgc_io_read_n_3         <= hgc_io_read_n_2;
+        hgc_address_enable_n_1  <= video_address_enable_n;
+        hgc_address_enable_n_2  <= hgc_address_enable_n_1;
     end
 
     always_ff @(posedge clk_vga_cga)
@@ -894,90 +896,99 @@ end
     reg           HBLANK_CGA;
     reg           VBLANK_CGA;
 
-    reg   [5:0]   R_MDA;
-    reg   [5:0]   G_MDA;
-    reg   [5:0]   B_MDA;
-    reg           HSYNC_MDA;
-    reg           VSYNC_MDA;
-    reg           HBLANK_MDA;
-    reg           VBLANK_MDA;
+    reg   [5:0]   R_HGC;
+    reg   [5:0]   G_HGC;
+    reg   [5:0]   B_HGC;
+    reg           HSYNC_HGC;
+    reg           VSYNC_HGC;
+    reg           HBLANK_HGC;
+    reg           VBLANK_HGC;
 
     reg           de_o_cga;
-    reg           de_o_mda;
+    reg           de_o_hgc;
 
     wire   [3:0]  video_cga;
-    wire          video_mda;
+    wire          video_hgc;
 
-    assign VGA_R = video_output ? R_MDA : R_CGA;
-    assign VGA_G = video_output ? G_MDA : G_CGA;
-    assign VGA_B = video_output ? B_MDA : B_CGA;
-    assign VGA_HSYNC = video_output ? HSYNC_MDA : HSYNC_CGA;
-    assign VGA_VSYNC = video_output ? VSYNC_MDA : VSYNC_CGA;
+    assign VGA_R = video_output ? R_HGC : R_CGA;
+    assign VGA_G = video_output ? G_HGC : G_CGA;
+    assign VGA_B = video_output ? B_HGC : B_CGA;
+    assign VGA_HSYNC = video_output ? HSYNC_HGC : HSYNC_CGA;
+    assign VGA_VSYNC = video_output ? VSYNC_HGC : VSYNC_CGA;
 
-    assign VGA_HBlank = video_output ? HBLANK_MDA : HBLANK_CGA;
-    assign VGA_VBlank = video_output ? VBLANK_MDA : VBLANK_CGA;
+    assign VGA_HBlank = video_output ? HBLANK_HGC : HBLANK_CGA;
+    assign VGA_VBlank = video_output ? VBLANK_HGC : VBLANK_CGA;
 
-    assign de_o = video_output ? de_o_mda : de_o_cga;
+    assign de_o = video_output ? de_o_hgc : de_o_cga;
 
-    wire MDA_VRAM_ENABLE;
-    wire [18:0] MDA_VRAM_ADDR;
-    wire [7:0] MDA_VRAM_DOUT;
-    wire MDA_CRTC_OE;
-    reg  MDA_CRTC_OE_1;
-    reg  MDA_CRTC_OE_2;
-    wire [7:0] MDA_CRTC_DOUT;
-    reg  [7:0] MDA_CRTC_DOUT_1;
-    reg  [7:0] MDA_CRTC_DOUT_2;
+    wire HGC_VRAM_ENABLE;
+    wire [18:0] HGC_VRAM_ADDR;
+    wire [7:0] HGC_VRAM_DOUT;
+    wire HGC_CRTC_OE;
+    reg  HGC_CRTC_OE_1;
+    reg  HGC_CRTC_OE_2;
+    wire [7:0] HGC_CRTC_DOUT;
+    reg  [7:0] HGC_CRTC_DOUT_1;
+    reg  [7:0] HGC_CRTC_DOUT_2;
 
     wire intensity;
+    wire hgc_std_hsyncwidth;
+    wire hgc_vblank_border;
 
-	`ifdef NO_MDA	
-        // NO MDA VIDEO
+	`ifdef NO_MDA
+        // NO HGC/MDA VIDEO
+        assign hgc_grph_mode = 1'b0;
+        assign hgc_grph_page = 1'b0;
     `else
 
-    mda_vgaport vga_mda 
+    hgc_vgaport vga_hgc
     (
         .clk(clk_vga_mda),
-        .video(video_mda),
+        .video(video_hgc),
         .intensity(intensity),
-        .red(R_MDA),
-        .green(G_MDA),
-        .blue(B_MDA)
-        //.mda_rgb(mda_rgb)
+        .red(R_HGC),
+        .green(G_HGC),
+        .blue(B_HGC),
+        .hgc_rgb(mda_rgb)
     );
 
-    mda mda1 
+    hgc hgc1
     (
         .clk                        (clk_vga_mda),
-        .bus_a                      (mda_io_address_2),
-        .bus_ior_l                  (mda_io_read_n_3),
-        .bus_iow_l                  (mda_io_write_n_3),
+        .bus_a                      (hgc_io_address_2),
+        .bus_ior_l                  (hgc_io_read_n_3),
+        .bus_iow_l                  (hgc_io_write_n_3),
         .bus_memr_l                 (1'd0),
         .bus_memw_l                 (1'd0),
-        .bus_d                      (mda_io_data_2),
-        .bus_out                    (MDA_CRTC_DOUT),
-        .bus_dir                    (MDA_CRTC_OE),
-        .bus_aen                    (mda_address_enable_n_2),
-        .ram_we_l                   (MDA_VRAM_ENABLE),
-        .ram_a                      (MDA_VRAM_ADDR),
-        .ram_d                      (MDA_VRAM_DOUT),
-        .hsync                      (HSYNC_MDA),
-        .hblank                     (HBLANK_MDA),
-        .vsync                      (VSYNC_MDA),
-        .vblank                     (VBLANK_MDA),
+        .bus_d                      (hgc_io_data_2),
+        .bus_out                    (HGC_CRTC_DOUT),
+        .bus_dir                    (HGC_CRTC_OE),
+        .bus_aen                    (hgc_address_enable_n_2),
+        .ram_we_l                   (HGC_VRAM_ENABLE),
+        .ram_a                      (HGC_VRAM_ADDR),
+        .ram_d                      (HGC_VRAM_DOUT),
+        .hsync                      (HSYNC_HGC),
+        .hblank                     (HBLANK_HGC),
+        .vsync                      (VSYNC_HGC),
+        .vblank                     (VBLANK_HGC),
         .intensity                  (intensity),
-        .video                      (video_mda),
-        .de_o                       (de_o_mda)
+        .video                      (video_hgc),
+        .de_o                       (de_o_hgc),
+        .grph_mode                  (hgc_grph_mode),
+        .grph_page                  (hgc_grph_page),
+        .std_hsyncwidth             (hgc_std_hsyncwidth),
+        .vblank_border              (hgc_vblank_border),
+        .hercules_hw                (enable_mda)
     );
 
     `endif
 
     always_ff @(posedge clock)
     begin
-        MDA_CRTC_DOUT_1 <= MDA_CRTC_DOUT;
-        MDA_CRTC_DOUT_2 <= MDA_CRTC_DOUT_1;
-        MDA_CRTC_OE_1   <= MDA_CRTC_OE;
-        MDA_CRTC_OE_2   <= MDA_CRTC_OE_1;
+        HGC_CRTC_DOUT_1 <= HGC_CRTC_DOUT;
+        HGC_CRTC_DOUT_2 <= HGC_CRTC_DOUT_1;
+        HGC_CRTC_OE_1   <= HGC_CRTC_OE;
+        HGC_CRTC_OE_2   <= HGC_CRTC_OE_1;
     end
 
 
@@ -994,7 +1005,7 @@ end
     // Sets up the card to generate a video signal
     // that will work with a standard VGA monitor
     // connected to the VGA port.
-    localparam MDA_70HZ = 0;
+    localparam HGC_70HZ = 0;
 
     wire thin_font;
 
@@ -1063,11 +1074,11 @@ end
 
 
     defparam cga1.BLINK_MAX = 24'd4772727;
-	`ifndef NO_MDA	
-    defparam mda1.BLINK_MAX = 24'd9100000;
+	`ifndef NO_MDA
+    defparam hgc1.BLINK_MAX = 24'd9100000;
     `endif
     wire [7:0] cga_vram_cpu_dout;
-    wire [7:0] mda_vram_cpu_dout;
+    wire [7:0] hgc_vram_cpu_dout;
 
 
     `ifdef CGA_128
@@ -1075,15 +1086,15 @@ end
         vram_ip_128  cga_vram	// 128 kB
         (
             .clock_a                  (clock),
-            .enable_a                 (mda_mem_select_1 | (cga_mem_select_1 || video_mem_select_1)),
+            .enable_a                 (hgc_mem_select_1 | (cga_mem_select_1 || video_mem_select_1)),
             .wren_a                   (~video_memory_write_n & memory_write_n),
             .address_a                (video_output ? video_ram_address[11:0] : tandy_video ? video_mem_select_1 ? video_ram_address : tandy_page_data[3] ? {tandy_page_data[5:3], video_ram_address[13:0]} : {tandy_page_data[5:4], video_ram_address[14:0]} : video_ram_address[13:0]),
             .data_a                   (video_ram_data),
             .q_a                      (cga_vram_cpu_dout),
             .clock_b                  (video_output ? clk_vga_mda : clk_vga_cga),
-            .enable_b                 (MDA_VRAM_ENABLE | CGA_VRAM_ENABLE),
+            .enable_b                 (HGC_VRAM_ENABLE | CGA_VRAM_ENABLE),
             .wren_b                   (1'b0),
-            .address_b                (video_output ? MDA_VRAM_ADDR[11:0] : tandy_video ? (grph_mode & hres_mode) ? {tandy_page_data[2:1], CGA_VRAM_ADDR[14:0]} : {tandy_page_data[2:0], CGA_VRAM_ADDR[13:0]} : CGA_VRAM_ADDR[13:0]),
+            .address_b                (video_output ? HGC_VRAM_ADDR[11:0] : tandy_video ? (grph_mode & hres_mode) ? {tandy_page_data[2:1], CGA_VRAM_ADDR[14:0]} : {tandy_page_data[2:0], CGA_VRAM_ADDR[13:0]} : CGA_VRAM_ADDR[13:0]),
             .data_b                   (8'h0),
             .q_b                      (CGA_VRAM_DOUT)
         );
@@ -1093,15 +1104,15 @@ end
         vram_ip_128_CV  cga_vram	// 128 kB
         (
             .clock_a                  (clock),
-            .enable_a                 (mda_mem_select_1 | (cga_mem_select_1 || video_mem_select_1)),
+            .enable_a                 (hgc_mem_select_1 | (cga_mem_select_1 || video_mem_select_1)),
             .wren_a                   (~video_memory_write_n & memory_write_n),
             .address_a                (video_output ? video_ram_address[11:0] : tandy_video ? video_mem_select_1 ? video_ram_address : tandy_page_data[3] ? {tandy_page_data[5:3], video_ram_address[13:0]} : {tandy_page_data[5:4], video_ram_address[14:0]} : video_ram_address[13:0]),
             .data_a                   (video_ram_data),
             .q_a                      (cga_vram_cpu_dout),
             .clock_b                  (video_output ? clk_vga_mda : clk_vga_cga),
-            .enable_b                 (MDA_VRAM_ENABLE | CGA_VRAM_ENABLE),
+            .enable_b                 (HGC_VRAM_ENABLE | CGA_VRAM_ENABLE),
             .wren_b                   (1'b0),
-            .address_b                (video_output ? MDA_VRAM_ADDR[11:0] : tandy_video ? (grph_mode & hres_mode) ? {tandy_page_data[2:1], CGA_VRAM_ADDR[14:0]} : {tandy_page_data[2:0], CGA_VRAM_ADDR[13:0]} : CGA_VRAM_ADDR[13:0]),
+            .address_b                (video_output ? HGC_VRAM_ADDR[11:0] : tandy_video ? (grph_mode & hres_mode) ? {tandy_page_data[2:1], CGA_VRAM_ADDR[14:0]} : {tandy_page_data[2:0], CGA_VRAM_ADDR[13:0]} : CGA_VRAM_ADDR[13:0]),
             .data_b                   (8'h0),
             .q_b                      (CGA_VRAM_DOUT)
         );
@@ -1111,15 +1122,15 @@ end
         vram_ip_64  cga_vram	// 64 kB     Improves arkanoid and Gods video output, but then Prince does not display well
         (
             .clock_a                  (clock),
-            .enable_a                 (mda_mem_select_1 | (cga_mem_select_1 || video_mem_select_1)),
+            .enable_a                 (hgc_mem_select_1 | (cga_mem_select_1 || video_mem_select_1)),
             .wren_a                   (~video_memory_write_n & memory_write_n),
             .address_a                (video_output ? video_ram_address[11:0] : tandy_video ? video_mem_select_1 ? video_ram_address : tandy_page_data[3] ? {tandy_page_data[5:3], video_ram_address[13:0]} : {tandy_page_data[5:4], video_ram_address[14:0]} : video_ram_address[13:0]),
             .data_a                   (video_ram_data),
             .q_a                      (cga_vram_cpu_dout),
             .clock_b                  (video_output ? clk_vga_mda : clk_vga_cga),
-            .enable_b                 (MDA_VRAM_ENABLE | CGA_VRAM_ENABLE),
+            .enable_b                 (HGC_VRAM_ENABLE | CGA_VRAM_ENABLE),
             .wren_b                   (1'b0),
-            .address_b                (video_output ? MDA_VRAM_ADDR[11:0] : tandy_video ? (grph_mode & hres_mode) ? {tandy_page_data[2:1], CGA_VRAM_ADDR[14:0]} : {tandy_page_data[2:0], CGA_VRAM_ADDR[13:0]} : CGA_VRAM_ADDR[13:0]),
+            .address_b                (video_output ? HGC_VRAM_ADDR[11:0] : tandy_video ? (grph_mode & hres_mode) ? {tandy_page_data[2:1], CGA_VRAM_ADDR[14:0]} : {tandy_page_data[2:0], CGA_VRAM_ADDR[13:0]} : CGA_VRAM_ADDR[13:0]),
             .data_b                   (8'h0),
             .q_b                      (CGA_VRAM_DOUT)
         );
@@ -1131,15 +1142,15 @@ end
         vram_ip_32	cga_vram    // 32 kB 
         (
             .clock_a                  (clock),
-            .enable_a                 (mda_mem_select_1 | cga_mem_select_1),
+            .enable_a                 (hgc_mem_select_1 | cga_mem_select_1),
             .wren_a                   (~video_memory_write_n & memory_write_n),
             .address_a                (video_output ? video_ram_address[11:0] : tandy_video ? video_ram_address : video_ram_address[13:0]),
             .data_a                   (video_ram_data),
             .q_a                      (cga_vram_cpu_dout),
             .clock_b                  (video_output ? clk_vga_mda : clk_vga_cga),
-            .enable_b                 (MDA_VRAM_ENABLE | CGA_VRAM_ENABLE),
+            .enable_b                 (HGC_VRAM_ENABLE | CGA_VRAM_ENABLE),
             .wren_b                   (1'b0),
-            .address_b                (video_output ? MDA_VRAM_ADDR[11:0] : (tandy_video & grph_mode & hres_mode) ? CGA_VRAM_ADDR[14:0] : CGA_VRAM_ADDR[13:0]),
+            .address_b                (video_output ? HGC_VRAM_ADDR[11:0] : (tandy_video & grph_mode & hres_mode) ? CGA_VRAM_ADDR[14:0] : CGA_VRAM_ADDR[13:0]),
             .data_b                   (8'h0),
             .q_b                      (CGA_VRAM_DOUT)
         );
@@ -1149,15 +1160,15 @@ end
         vram_ip_16  cga_vram   	// 16 kB  (CGA games Ok, but Tandy games won't work)
         (
             .clock_a                  (clock),
-            .enable_a                 (mda_mem_select_1 | cga_mem_select_1),
+            .enable_a                 (hgc_mem_select_1 | cga_mem_select_1),
             .wren_a                   (~video_memory_write_n & memory_write_n),
             .address_a                (video_output ? video_ram_address[11:0] : tandy_video ? video_ram_address : video_ram_address[13:0]),
             .data_a                   (video_ram_data),
             .q_a                      (cga_vram_cpu_dout),
             .clock_b                  (video_output ? clk_vga_mda : clk_vga_cga),
-            .enable_b                 (MDA_VRAM_ENABLE | CGA_VRAM_ENABLE),
+            .enable_b                 (HGC_VRAM_ENABLE | CGA_VRAM_ENABLE),
             .wren_b                   (1'b0),
-            .address_b                (video_output ? MDA_VRAM_ADDR[11:0] : (tandy_video & grph_mode & hres_mode) ? CGA_VRAM_ADDR[14:0] : CGA_VRAM_ADDR[13:0]),
+            .address_b                (video_output ? HGC_VRAM_ADDR[11:0] : (tandy_video & grph_mode & hres_mode) ? CGA_VRAM_ADDR[14:0] : CGA_VRAM_ADDR[13:0]),
             .data_b                   (8'h0),
             .q_b                      (CGA_VRAM_DOUT)
         );
@@ -1172,33 +1183,30 @@ end
     `endif
 
 
-    assign mda_vram_cpu_dout = cga_vram_cpu_dout;
-    assign MDA_VRAM_DOUT = CGA_VRAM_DOUT;
+    assign hgc_vram_cpu_dout = cga_vram_cpu_dout;
+    assign HGC_VRAM_DOUT = CGA_VRAM_DOUT;
 
 
-    `ifdef NO_CGA       
+    `ifdef NO_CGA
 
-        // If not CGA then enables only a 4k MDA VRAM. 
-        // When CGA is enabled it shares video RAM with MDA
+        // If not CGA then enables only a 4k HGC/MDA VRAM.
+        // When CGA is enabled it shares video RAM with HGC
 
-        vram_ip_4 mda_vram       //4 kB
+        vram_ip_4 hgc_vram       //4 kB
         (
             .clock_a                  (clock),
-            .enable_a                 (mda_mem_select_1),
+            .enable_a                 (hgc_mem_select_1),
             .wren_a                   (~video_memory_write_n),
             .address_a                (video_ram_address[11:0]),
             .data_a                   (video_ram_data),
-            .q_a                      (mda_vram_cpu_dout),
+            .q_a                      (hgc_vram_cpu_dout),
             .clock_b                  (clk_vga_mda),
-            .enable_b                 (MDA_VRAM_ENABLE),
+            .enable_b                 (HGC_VRAM_ENABLE),
             .wren_b                   (1'b0),
-            .address_b                (MDA_VRAM_ADDR[11:0]),
+            .address_b                (HGC_VRAM_ADDR[11:0]),
             .data_b                   (8'h0),
-            .q_b                      (MDA_VRAM_DOUT)
+            .q_b                      (HGC_VRAM_DOUT)
         );
-
-    //  `ifdef MDA_CV     
-    //  vram_ip_4_CV mda_vram    //4 kB    
 
     `endif
 
@@ -1373,17 +1381,17 @@ end
         else if (mda_mem_select && (~memory_read_n))
         begin
             data_bus_out_from_chipset <= 1'b1;
-            data_bus_out <= mda_vram_cpu_dout;
+            data_bus_out <= hgc_vram_cpu_dout;
         end
         else if (CGA_CRTC_OE_2)
         begin
             data_bus_out_from_chipset <= 1'b1;
             data_bus_out <= CGA_CRTC_DOUT_2;
         end
-        else if (MDA_CRTC_OE_2)
+        else if (HGC_CRTC_OE_2)
         begin
             data_bus_out_from_chipset <= 1'b1;
-            data_bus_out <= MDA_CRTC_DOUT_2;
+            data_bus_out <= HGC_CRTC_DOUT_2;
         end
         else if ((opl_228_chip_select || opl_388_chip_select) && ~io_read_n)
         begin

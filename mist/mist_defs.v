@@ -28,7 +28,7 @@
 
 ////// EMBED ROMs into Logic Cells to free BRAM resources needed for video and audio //////
 //`define EMBED_8088_ROM        // (16 M9K)
-//`define EMBED_CHAR_ROM_MDA  	// (4 M9K)
+//`define EMBED_CHAR_ROM_MDA  	// (4 M9K) HGC/MDA character ROM
 
 ////// AUDIO //////
 //`define NO_ADLIB     		// Adlib. (4/9 M9K) 
@@ -47,8 +47,8 @@
 //`define CGA_128		// (128 M9K) 
 //`define CGA_128_CV 		// (128 M9K) CGA for CYCLONE V boards, enables MDA video also
 
-////// VIDEO MDA //////
-//`define NO_MDA		// if defined, MDA video output is disabled
+////// VIDEO HGC/MDA //////
+//`define NO_MDA		// if defined, HGC/MDA video output is disabled
 
 ////// UART 1  //////
 //`define NO_UART1		// (2 M9K) 
