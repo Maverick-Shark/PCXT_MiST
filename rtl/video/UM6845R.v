@@ -62,6 +62,7 @@ parameter V_SYNCPOS = 0;
 parameter V_MAXSCAN = 0;
 parameter C_START = 0;
 parameter C_END = 0;
+parameter LOCK = 0;  // When 1, prevents software writes to timing registers 0-9
 
 reg [12:0] hde_del;
 
@@ -129,7 +130,7 @@ end
 always @(posedge CLOCK) begin
 	if (ENABLE & ~nCS & ~R_nW) begin
 		if (~RS) addr <= DI[4:0];
-		else begin
+		else if (!LOCK || addr > 5'd9) begin
 			case (addr)
 				00: R0_h_total <= DI;
 				01: R1_h_displayed <= DI;
