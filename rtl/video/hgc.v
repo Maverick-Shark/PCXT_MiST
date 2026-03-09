@@ -227,12 +227,13 @@ module hgc(
         defparam crtc.LOCK = 1;
         defparam crtc.H_TOTAL = 8'd99;
         defparam crtc.H_DISP = 8'd80;
-        defparam crtc.H_SYNCPOS = 8'd82;
+        defparam crtc.H_SYNCPOS = 8'd84;       // centered: FP=36px, BP=34px (was 82: FP=18, BP=52)
         defparam crtc.H_SYNCWIDTH = 4'd12;
-        defparam crtc.V_TOTAL = 7'd36;     // 37 rows × 14 lines + 7 adj = 525 total
+        defparam crtc.V_TOTAL = 7'd36;          // 37 rows × 14 lines + 7 adj = 525 total
         defparam crtc.V_TOTALADJ = 5'd7;
         defparam crtc.V_DISP = 7'd25;
-        defparam crtc.V_SYNCPOS = 7'd28;
+        defparam crtc.V_SYNCPOS = 7'd31;        // centered: VFP=84, VBP=89 (was 28: VFP=42, VBP=117)
+        defparam crtc.V_SYNCWIDTH = 4'd2;       // 2-line vsync (standard VGA, was 16 lines)
         defparam crtc.V_MAXSCAN = 5'd13;
         defparam crtc.C_START = 7'd11;
         defparam crtc.C_END = 5'd12;

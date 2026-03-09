@@ -60,6 +60,7 @@ parameter V_TOTALADJ = 0;
 parameter V_DISP = 0;
 parameter V_SYNCPOS = 0;
 parameter V_MAXSCAN = 0;
+parameter V_SYNCWIDTH = 4'd0;  // Vsync width override for CRTC_TYPE=1 (0 = 16 lines default)
 parameter C_START = 0;
 parameter C_END = 0;
 parameter LOCK = 0;  // When 1, prevents software writes to timing registers 0-9
@@ -302,7 +303,7 @@ always @(posedge CLOCK) begin
 				VSYNC_r <= 1;
 				// Don't allow a new vsync until a new row (Onescreen Colonies) or the R7 is written (PHX)
 				vsync_allow <= 0;
-				vsc <= (CRTC_TYPE ? 4'd0 : R3_v_sync_width) - 1'd1;
+				vsc <= (CRTC_TYPE ? V_SYNCWIDTH : R3_v_sync_width) - 1'd1;
 			end
 			else VSYNC_r <= 0;
 		end
@@ -319,7 +320,7 @@ always @(posedge CLOCK) begin
 		if (row == DI[6:0] && !VSYNC_r) begin
 			// TODO: extra conditions for CRTC0
 			VSYNC_r <= 1;
-			vsc <= (CRTC_TYPE ? 4'd0 : R3_v_sync_width) - 1'd1;
+			vsc <= (CRTC_TYPE ? V_SYNCWIDTH : R3_v_sync_width) - 1'd1;
 		end
 	end
 	if (nCLKEN & ENABLE & RS & ~nCS & ~R_nW & addr == 5'd06) begin
