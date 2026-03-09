@@ -70,10 +70,15 @@ module hgc(
     wire blink_enabled;
 
     wire hsync_int;
+    wire hblank_crtc;
+    wire vblank_crtc;
     wire vsync_l;
+    wire vsync_sd_l;
+    wire vblank_sd;
     wire cursor;
 //    wire video;
     wire display_enable;
+    wire display_enable_sd;
 //    wire intensity;
 
     wire[13:0] crtc_addr;
@@ -90,8 +95,11 @@ module hgc(
     wire crtc_clk;
     wire[7:0] ram_1_d;
     wire[3:0] hsync_width_crtc;
-    wire line_reset;
     wire[1:0] dbl_video_int;
+
+    // Half-rate clock enable for pixel decimation (57 MHz -> 28.6 MHz)
+    reg ce_half = 1'b0;
+    always @(posedge clk) ce_half <= ~ce_half;
 
     reg[23:0] blink_counter;
     reg blink;
@@ -105,7 +113,8 @@ module hgc(
     //reg[1:0] wait_state = 2'd0;
     //reg bus_rdy_latch;
 
-	 assign de_o = display_enable;
+	 assign de_o = display_enable_sd;
+	 assign hblank = ~display_enable_sd;
 
 	 assign ram_a = grph_mode ? {4'b0000, row_addr[1:0], crtc_addr[11:0], vram_read_a0} :
                                {7'b0000000, crtc_addr[10:0], vram_read_a0};
@@ -124,8 +133,9 @@ module hgc(
         bus_iow_synced_l <= bus_iow_l;
     end
 
-    // Some modules need a non-inverted vsync trigger
-    assign vsync = ~vsync_l;
+    // VSYNC and VBLANK from scandoubler (latched versions of CRTC signals)
+    assign vsync = ~vsync_sd_l;
+    assign vblank = vblank_sd;
 
     // Mapped IO
     assign crtc_cs = (bus_a[14:3] == IO_BASE_ADDR[14:3]) & ~bus_aen & hercules_hw; // 3B4/3B5
@@ -198,8 +208,8 @@ module hgc(
 		  .DI(bus_d),
 		  .DO(bus_out_crtc),
 
-		  .hblank(hblank),
-		  .vblank(vblank),
+		  .hblank(hblank_crtc),
+		  .vblank(vblank_crtc),
 
 		  .VSYNC(vsync_l),
 		  .HSYNC(hsync_int),
@@ -209,8 +219,7 @@ module hgc(
 
 		  .MA(crtc_addr),
 		  .RA(row_addr),
-		  .hsync_width(hsync_width_crtc),
-		  .line_reset(line_reset)
+		  .hsync_width(hsync_width_crtc)
 
 	 );
 
@@ -309,18 +318,31 @@ module hgc(
         end
     end
 
-    // Pixel decimator: converts 1800 pixel clocks/line at ~57 MHz
-    // to 900 pixels/line with VGA-compatible HSYNC timing
-    hgc_scandoubler scandoubler_inst (
+    // Pixel decimator using generic video_scandoubler:
+    // ce_pix = ce_2x = half-rate toggle gives 1:1 decimation (1800 -> 900 pixels)
+    // Dynamic HSYNC positioning ensures correct h-center from CRTC H_SYNCPOS
+    video_scandoubler #(
+        .PIXEL_WIDTH(2),
+        .H_TOTAL_MAX(1024)
+    ) scandoubler_inst (
         .clk(clk),
-        .line_reset(line_reset),
-        .video({intensity, video}),
-        .dbl_hsync(dbl_hsync),
-        .dbl_video(dbl_video_int),
-        .dbl_hblank(dbl_hblank)
+        .ce_pix(ce_half),
+        .ce_2x(ce_half),
+        .scandouble_en(1'b1),
+        .pixel_in({intensity, video}),
+        .hsync_in(hsync_int),
+        .vsync_in(vsync_l),
+        .vblank_in(vblank_crtc),
+        .display_enable_in(display_enable),
+        .pixel_out(dbl_video_int),
+        .hsync_out(dbl_hsync),
+        .vsync_out(vsync_sd_l),
+        .vblank_out(vblank_sd),
+        .display_enable_out(display_enable_sd)
     );
 
     assign dbl_video = dbl_video_int[0];
     assign dbl_intensity = dbl_video_int[1];
+    assign dbl_hblank = ~display_enable_sd;
 
 endmodule
