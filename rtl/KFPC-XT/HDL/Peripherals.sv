@@ -932,14 +932,26 @@ end
     reg  [7:0] HGC_CRTC_DOUT_2;
 
     wire intensity;
+    wire intensity_raw;
+    wire video_hgc_raw;
     wire hgc_std_hsyncwidth;
     wire hgc_vblank_border;
+
+    // Scandoubled (decimated) HGC signals for VGA-compatible output
+    wire dbl_hsync_hgc;
+    wire dbl_hblank_hgc;
+    wire dbl_video_hgc;
+    wire dbl_intensity_hgc;
 
 	`ifdef NO_MDA
         // NO HGC/MDA VIDEO
         assign hgc_grph_mode = 1'b0;
         assign hgc_grph_page = 1'b0;
     `else
+
+    // Use scandoubled (decimated) video/intensity for VGA output
+    assign video_hgc = dbl_video_hgc;
+    assign intensity = dbl_intensity_hgc;
 
     hgc_vgaport vga_hgc
     (
@@ -967,18 +979,22 @@ end
         .ram_we_l                   (HGC_VRAM_ENABLE),
         .ram_a                      (HGC_VRAM_ADDR),
         .ram_d                      (HGC_VRAM_DOUT),
-        .hsync                      (HSYNC_HGC),
-        .hblank                     (HBLANK_HGC),
+        .hsync                      (),
+        .hblank                     (),
         .vsync                      (VSYNC_HGC),
         .vblank                     (VBLANK_HGC),
-        .intensity                  (intensity),
-        .video                      (video_hgc),
+        .intensity                  (intensity_raw),
+        .video                      (video_hgc_raw),
         .de_o                       (de_o_hgc),
         .grph_mode                  (hgc_grph_mode),
         .grph_page                  (hgc_grph_page),
         .std_hsyncwidth             (hgc_std_hsyncwidth),
         .vblank_border              (hgc_vblank_border),
-        .hercules_hw                (enable_mda)
+        .hercules_hw                (enable_mda),
+        .dbl_hsync                  (HSYNC_HGC),
+        .dbl_hblank                 (HBLANK_HGC),
+        .dbl_video                  (dbl_video_hgc),
+        .dbl_intensity              (dbl_intensity_hgc)
     );
 
     `endif

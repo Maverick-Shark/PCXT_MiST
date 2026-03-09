@@ -40,7 +40,13 @@ module hgc(
     output grph_page,
     output std_hsyncwidth,
     output vblank_border,
-    input hercules_hw
+    input hercules_hw,
+
+    // Scandoubled (decimated) video outputs for VGA
+    output dbl_hsync,
+    output dbl_hblank,
+    output dbl_video,
+    output dbl_intensity
     );
 
     parameter HGC_70HZ = 1;
@@ -84,6 +90,8 @@ module hgc(
     wire crtc_clk;
     wire[7:0] ram_1_d;
     wire[3:0] hsync_width_crtc;
+    wire line_reset;
+    wire[1:0] dbl_video_int;
 
     reg[23:0] blink_counter;
     reg blink;
@@ -201,7 +209,8 @@ module hgc(
 
 		  .MA(crtc_addr),
 		  .RA(row_addr),
-		  .hsync_width(hsync_width_crtc)
+		  .hsync_width(hsync_width_crtc),
+		  .line_reset(line_reset)
 
 	 );
 
@@ -211,10 +220,10 @@ module hgc(
         defparam crtc.H_DISP = 8'd80;
         defparam crtc.H_SYNCPOS = 8'd82;
         defparam crtc.H_SYNCWIDTH = 4'd12;
-        defparam crtc.V_TOTAL = 7'd31;
-        defparam crtc.V_TOTALADJ = 5'd1;
+        defparam crtc.V_TOTAL = 7'd36;     // 37 rows × 14 lines + 7 adj = 525 total
+        defparam crtc.V_TOTALADJ = 5'd7;
         defparam crtc.V_DISP = 7'd25;
-        defparam crtc.V_SYNCPOS = 7'd27;
+        defparam crtc.V_SYNCPOS = 7'd28;
         defparam crtc.V_MAXSCAN = 5'd13;
         defparam crtc.C_START = 7'd11;
         defparam crtc.C_END = 5'd12;
@@ -299,5 +308,19 @@ module hgc(
             blink_counter <= blink_counter + 1;
         end
     end
+
+    // Pixel decimator: converts 1800 pixel clocks/line at ~57 MHz
+    // to 900 pixels/line with VGA-compatible HSYNC timing
+    hgc_scandoubler scandoubler_inst (
+        .clk(clk),
+        .line_reset(line_reset),
+        .video({intensity, video}),
+        .dbl_hsync(dbl_hsync),
+        .dbl_video(dbl_video_int),
+        .dbl_hblank(dbl_hblank)
+    );
+
+    assign dbl_video = dbl_video_int[0];
+    assign dbl_intensity = dbl_video_int[1];
 
 endmodule
