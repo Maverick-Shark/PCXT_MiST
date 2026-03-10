@@ -646,17 +646,30 @@ module FE2010A (
 
     assign config_locked = config_lock;
 
-    // Decode configuration outputs
-    // Clock select: bits [7:6]
-    //   00 = 4.77 MHz, 01 = 7.15 MHz, 10 = 9.54 MHz, 11 = 9.54 MHz
-    assign clk_select_out = config_reg[7:6];
-
-    // Fast mode: bit 5
-    assign fast_mode = config_reg[5];
-
     // RAM size: bits [4,2]
     //   00 = 640 KB (3 banks), 01 = 256 KB (1 bank), 10 = 512 KB (2 banks)
     assign ram_size_cfg = {config_reg[4], config_reg[2]};
+
+
+    // ========================================================================
+    // FE2010A Clock Generator (fe2010a_clkgen)
+    // ========================================================================
+    //
+    // Translates Configuration Register bits [7:5] into the clk_select
+    // format used by PCXT.sv, plus duty cycle and fast mode signals.
+    //
+    wire [3:0] cpu_clk_period;
+    wire       duty_cycle_50;
+
+    fe2010a_clkgen u_clkgen (
+        .clock              (clock),
+        .reset              (reset),
+        .config_clk_bits    (config_reg[7:5]),
+        .clk_select         (clk_select_out),
+        .duty_cycle_50      (duty_cycle_50),
+        .fast_mode          (fast_mode),
+        .cpu_clk_period     (cpu_clk_period)
+    );
 
 
     // ========================================================================
@@ -677,15 +690,51 @@ module FE2010A (
 
 
     // ========================================================================
+    // FE2010A Wait State Generator (fe2010a_waitgen)
+    // ========================================================================
+    //
+    // Generates additional wait states for I/O and memory bus operations
+    // based on the CPU clock speed and Configuration Register bits [7:5].
+    //
+    // The output fe2010a_ready is ANDed with io_channel_ready before
+    // entering the base ready logic. When fe2010a_ready goes low, extra
+    // wait states are inserted beyond the base 1 WS that the ready logic
+    // already provides.
+    //
+    wire fe2010a_ws_ready;
+
+    fe2010a_waitgen u_waitgen (
+        .clock              (clock),
+        .cpu_clock          (cpu_clock),
+        .reset              (reset),
+        .config_clk_bits    (config_reg[7:5]),
+        .io_read_n          (io_read_n),
+        .io_write_n         (io_write_n),
+        .memory_read_n      (memory_read_n),
+        .memory_write_n     (memory_write_n),
+        .address_enable_n   (address_enable_n_reg),
+        .address            (address),
+        .onboard_ram_access (1'b0),  // TODO: connect to RAM address decode
+        .fe2010a_ready      (fe2010a_ws_ready)
+    );
+
+    // Combined ready signal: external IORDY AND FE2010A wait state generator
+    wire combined_io_ready = io_channel_ready & fe2010a_ws_ready;
+
+
+    // ========================================================================
     // Ready / Wait State Logic (replaces Ready.sv)
     // ========================================================================
-    // The FE2010A generates 1 wait state on all CPU I/O and DMA operations
-    // at 4.77 MHz, with additional wait states at higher speeds per the
-    // configuration register. It also synchronizes the external IORDY signal.
     //
-    // For now, we use the same logic as the original Ready.sv to maintain
-    // compatibility. The FE2010A-specific wait state table will be implemented
-    // in a later phase when turbo mode support is validated.
+    // Base ready logic from the original Ready.sv, now driven by the
+    // combined ready signal that includes FE2010A-generated wait states.
+    //
+    // At 4.77 MHz: fe2010a_ws_ready is always 1, so behavior is identical
+    // to the original Ready.sv (1 base wait state on I/O operations).
+    //
+    // At higher speeds: fe2010a_ws_ready goes low for extra clock cycles,
+    // causing the ready logic to insert additional wait states per the
+    // FE2010A configuration table.
     //
 
     reg  prev_bus_state;
@@ -706,13 +755,13 @@ module FE2010A (
         if (reset) begin
             ready_n_or_wait    <= 1'b1;
             ready_n_or_wait_Qn <= 1'b0;
-        end else if (~io_channel_ready & prev_ready_n_or_wait) begin
+        end else if (~combined_io_ready & prev_ready_n_or_wait) begin
             ready_n_or_wait    <= 1'b1;
             ready_n_or_wait_Qn <= 1'b1;
-        end else if (~io_channel_ready & ~prev_ready_n_or_wait) begin
+        end else if (~combined_io_ready & ~prev_ready_n_or_wait) begin
             ready_n_or_wait    <= 1'b1;
             ready_n_or_wait_Qn <= 1'b0;
-        end else if (io_channel_ready & prev_ready_n_or_wait) begin
+        end else if (combined_io_ready & prev_ready_n_or_wait) begin
             ready_n_or_wait    <= 1'b0;
             ready_n_or_wait_Qn <= 1'b1;
         end else if (~prev_bus_state & bus_state) begin
