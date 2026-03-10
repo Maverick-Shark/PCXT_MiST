@@ -352,7 +352,7 @@ module FE2010A (
         .chip_select_n                      (dma_chip_select_n),
         .ready                              (dma_ready),
         .hold_acknowledge                   (hold_acknowledge & ~ext_access_request),
-        .dma_request                        (dma_request),
+        .dma_request                        ({dma_request[3:1], drq0_internal}),
         .data_bus_in                        (internal_data_bus),
         .data_bus_out                       (dma_data_out),
         .io_read_n_in                       (io_read_n),
@@ -555,6 +555,42 @@ module FE2010A (
 
     assign timer_interrupt = timer_counter_out[0];
     assign speaker_out     = timer_counter_out[2] & spkdata;
+
+
+    // ========================================================================
+    // DRAM Refresh (Phase 6)
+    // ========================================================================
+    //
+    // In the FE2010A, PIT Channel 1 output drives DMA Channel 0 request.
+    // DMA Channel 0 is reserved for DRAM refresh. On the rising edge of
+    // PIT Channel 1 output, DRQ0 is asserted. It is cleared when DACK0
+    // is acknowledged.
+    //
+    // Refresh can be disabled by writing 0x54 to port 0x43 (PIT control
+    // word selecting counter 1 for latch). It is re-enabled by writing
+    // to port 0x41 (PIT counter 1 data). The PIT handles this internally.
+    //
+    // For SRAM-based systems, refresh can be disabled to avoid the ~15%
+    // performance penalty from inserted DMA cycles.
+    //
+    reg prev_timer_count_1;
+    reg drq0_internal;
+
+    always @(posedge clock) begin
+        if (reset)
+            prev_timer_count_1 <= 1'b1;
+        else
+            prev_timer_count_1 <= timer_counter_out[1];
+    end
+
+    always @(posedge clock or posedge reset) begin
+        if (reset)
+            drq0_internal <= 1'b0;
+        else if (~dma_acknowledge_n[0])
+            drq0_internal <= 1'b0;
+        else if (~prev_timer_count_1 & timer_counter_out[1])
+            drq0_internal <= 1'b1;
+    end
 
 
     // ========================================================================

@@ -15,6 +15,14 @@ module PERIPHERALS #(
         input   logic   [1:0]   clk_select,
         input   logic           color,
         input   logic           reset,
+        // FE2010A mode: when 1, PIC/PIT/PPI are handled by FE2010A module
+        input   logic           fe2010a_mode,
+        // FE2010A-provided signals (active when fe2010a_mode=1)
+        input   logic           fe2010a_interrupt_to_cpu,
+        input   logic   [2:0]   fe2010a_timer_counter_out,
+        input   logic           fe2010a_speaker_out,
+        input   logic   [7:0]   fe2010a_chipset_data_out,
+        input   logic           fe2010a_chipset_data_out_valid,
         // CPU
         output  logic           interrupt_to_cpu,
         // Bus Arbiter
@@ -193,9 +201,9 @@ module PERIPHERALS #(
     wire    iorq = ~io_read_n | ~io_write_n;
 
     assign  dma_chip_select_n       = chip_select_n[0]; // 0x00 .. 0x1F
-    wire    interrupt_chip_select_n = chip_select_n[1]; // 0x20 .. 0x3F
-    wire    timer_chip_select_n     = chip_select_n[2]; // 0x40 .. 0x5F
-    wire    ppi_chip_select_n       = chip_select_n[3]; // 0x60 .. 0x7F
+    wire    interrupt_chip_select_n = chip_select_n[1] | fe2010a_mode; // 0x20 .. 0x3F (disabled in FE2010A mode)
+    wire    timer_chip_select_n     = chip_select_n[2] | fe2010a_mode; // 0x40 .. 0x5F (disabled in FE2010A mode)
+    wire    ppi_chip_select_n       = chip_select_n[3] | fe2010a_mode; // 0x60 .. 0x7F (disabled in FE2010A mode)
     assign  dma_page_chip_select_n  = chip_select_n[4]; // 0x80 .. 0x8F
     wire    nmi_chip_select_n       = chip_select_n[5]; // 0xA0 .. 0xBF
     wire    tandy_chip_select_n     = ~tandy_video ? 1'b1 :
@@ -317,6 +325,8 @@ module PERIPHERALS #(
     always_ff @(posedge clock, posedge reset)
         if (reset)
             interrupt_to_cpu    <= 1'b0;
+        else if (fe2010a_mode)
+            interrupt_to_cpu    <= fe2010a_interrupt_to_cpu;
         else if (cpu_clock_negedge)
             interrupt_to_cpu    <= interrupt_to_cpu_buf;
         else
@@ -385,8 +395,8 @@ module PERIPHERALS #(
         .counter_2_out              (timer_counter_out[2])
     );
 
-    assign  timer_interrupt = timer_counter_out[0];
-    assign  speaker_out     = timer_counter_out[2] & spkdata;
+    assign  timer_interrupt = fe2010a_mode ? fe2010a_timer_counter_out[0] : timer_counter_out[0];
+    assign  speaker_out     = fe2010a_mode ? fe2010a_speaker_out : (timer_counter_out[2] & spkdata);
 
     //
     // 8255
@@ -1369,7 +1379,13 @@ end
     
     always_ff @(posedge clock)
     begin
-        if (~interrupt_acknowledge_n)
+        // FE2010A chipset data output (PIC/PIT/PPI reads handled by FE2010A)
+        if (fe2010a_mode && fe2010a_chipset_data_out_valid)
+        begin
+            data_bus_out_from_chipset <= 1'b1;
+            data_bus_out <= fe2010a_chipset_data_out;
+        end
+        else if (~interrupt_acknowledge_n)
         begin
             data_bus_out_from_chipset <= 1'b1;
             data_bus_out <= interrupt_data_bus_out;

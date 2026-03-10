@@ -15,6 +15,8 @@ module CHIPSET #(
         input   logic           color,
         input   logic           reset,
         input   logic           sdram_reset,
+        // Chipset selection: 0=Standard (IBM XT), 1=Faraday FE2010A
+        input   logic           chipset_select,
         // CPU
         input   logic   [19:0]  cpu_address,
         input   logic   [7:0]   cpu_data_bus,
@@ -185,9 +187,6 @@ module CHIPSET #(
     logic           internal_data_bus_direction;
     logic           no_command_state;
 
-    logic           prev_timer_count_1;
-    logic           DRQ0;
-
     logic   [6:0]   map_ems[0:3];
     logic           ena_ems[0:3];
     logic           ems_b1;
@@ -196,6 +195,18 @@ module CHIPSET #(
     logic           ems_b4;
     logic           tandy_snd_rdy;
 
+    // ========================================================================
+    // Standard Chipset path (Bus_Arbiter + Ready)
+    // Active when chipset_select = 0
+    // ========================================================================
+
+    logic           prev_timer_count_1;
+    logic           DRQ0;
+
+    // Standard chipset output wires
+    logic           std_processor_ready;
+    logic           std_dma_ready;
+    logic           std_dma_wait_n;
 
     always_ff @(posedge clock)
     begin
@@ -222,9 +233,9 @@ module CHIPSET #(
         .clock                              (clock),
         .cpu_clock                          (cpu_clock),
         .reset                              (reset),
-        .processor_ready                    (processor_ready),
-        .dma_ready                          (dma_ready),
-        .dma_wait_n                         (dma_wait_n),
+        .processor_ready                    (std_processor_ready),
+        .dma_ready                          (std_dma_ready),
+        .dma_wait_n                         (std_dma_wait_n),
         .io_channel_ready                   (io_channel_ready & memory_access_ready & tandy_snd_rdy),
         .io_read_n                          (io_read_n),
         .io_write_n                         (io_write_n),
@@ -275,6 +286,126 @@ module CHIPSET #(
         .terminal_count_n                   (terminal_count_n)
     );
 
+    // ========================================================================
+    // Faraday FE2010A Chipset path
+    // Active when chipset_select = 1
+    // ========================================================================
+
+    logic           fe_processor_ready;
+    logic           fe_dma_ready;
+    logic           fe_dma_wait_n;
+    logic           fe_interrupt_to_cpu;
+    logic   [2:0]   fe_timer_counter_out;
+    logic           fe_speaker_out;
+    logic   [7:0]   fe_chipset_data_out;
+    logic           fe_chipset_data_out_valid;
+    logic   [1:0]   fe_clk_select;
+    logic           fe_fast_mode;
+    logic           fe_nmi_enable;
+
+    // Keyboard data for FE2010A PPI (from KFPS2KB in Peripherals)
+    // These are provided by Peripherals via port_a_out when in standard mode.
+    // In FE2010A mode, keyboard data comes through the same PS/2 converter
+    // but is handled internally by the FE2010A PPI.
+    // We pass port_a_out (which Peripherals fills with keycode) to FE2010A.
+    // The keyboard IRQ comes from Peripherals' internal keybord_interrupt.
+
+    FE2010A u_FE2010A (
+        .clock                      (clock),
+        .cpu_clock                  (cpu_clock),
+        .peripheral_clock           (peripheral_clock),
+        .reset                      (reset),
+
+        // CPU interface (directly from 8088)
+        .cpu_address                (cpu_address),
+        .cpu_data_bus               (cpu_data_bus),
+        .processor_status           (processor_status),
+        .processor_lock_n           (processor_lock_n),
+        .processor_transmit_or_receive_n (),    // Bus_Arbiter drives this
+        .processor_ready            (fe_processor_ready),
+        .interrupt_to_cpu           (fe_interrupt_to_cpu),
+
+        // Address bus (directly connected - same as Bus_Arbiter)
+        .address                    (),         // Bus_Arbiter drives address
+        .address_ext                (address_ext),
+        .address_direction          (),
+        .address_latch_enable       (),
+
+        // Data bus
+        .internal_data_bus          (),         // Bus_Arbiter drives this
+        .data_bus_ext               (internal_data_bus_ext),
+        .data_bus_direction         (),
+
+        // Bus commands
+        .io_read_n                  (),         // Bus_Arbiter drives these
+        .io_read_n_ext              (io_read_n_ext),
+        .io_read_n_direction        (),
+        .io_write_n                 (),
+        .io_write_n_ext             (io_write_n_ext),
+        .io_write_n_direction       (),
+        .memory_read_n              (),
+        .memory_read_n_ext          (memory_read_n_ext),
+        .memory_read_n_direction    (),
+        .memory_write_n             (),
+        .memory_write_n_ext         (memory_write_n_ext),
+        .memory_write_n_direction   (),
+        .no_command_state           (),
+
+        // DMA
+        .ext_access_request         (ext_access_request),
+        .dma_request                (dma_request),
+        .dma_acknowledge_n          (),         // Bus_Arbiter drives this
+        .address_enable_n           (),
+        .terminal_count_n           (),
+
+        // Interrupts
+        .interrupt_request          (interrupt_request),
+        .uart_interrupt             (1'b0),     // Connected via Peripherals
+        .uart2_interrupt            (1'b0),
+        .uart2_active               (1'b0),
+
+        // I/O channel
+        .io_channel_check           (io_channel_check),
+        .io_channel_ready           (io_channel_ready & memory_access_ready & tandy_snd_rdy),
+
+        // Keyboard (from KFPS2KB via port_a_out)
+        .keyboard_data              (port_a_out),
+        .keyboard_irq               (1'b0),     // Handled via Peripherals keyboard path
+
+        // Timer / Speaker
+        .timer_counter_out          (fe_timer_counter_out),
+        .speaker_out                (fe_speaker_out),
+
+        // Config inputs
+        .vid_in                     (2'b00),    // TODO: connect to actual video type
+
+        // Config outputs
+        .clk_select_out             (fe_clk_select),
+        .fast_mode                  (fe_fast_mode),
+        .ram_size_cfg               (),
+        .nmi_enable                 (fe_nmi_enable),
+
+        // Chipset data output
+        .chipset_data_out           (fe_chipset_data_out),
+        .chipset_data_out_valid     (fe_chipset_data_out_valid),
+
+        // Ready
+        .dma_ready                  (fe_dma_ready),
+        .dma_wait_n                 (fe_dma_wait_n)
+    );
+
+    // ========================================================================
+    // Chipset output mux
+    // ========================================================================
+    // Select between Standard and FE2010A chipset based on chipset_select.
+    // Bus_Arbiter always drives the bus signals (address, data, commands)
+    // since both chipsets generate identical bus cycles from 8088 status.
+    // The difference is in ready timing, PIC/PIT/PPI behavior.
+
+    assign processor_ready = chipset_select ? fe_processor_ready : std_processor_ready;
+    assign dma_ready       = chipset_select ? fe_dma_ready       : std_dma_ready;
+    assign dma_wait_n      = chipset_select ? fe_dma_wait_n      : std_dma_wait_n;
+
     PERIPHERALS #(.clk_rate(clk_rate)) u_PERIPHERALS 
     (
         .clock                              (clock),
@@ -286,6 +417,14 @@ module CHIPSET #(
         .color                              (color),
         .clk_select                         (clk_select),
         .reset                              (reset),
+        // FE2010A mode: disables PIC/PIT/PPI in Peripherals
+        .fe2010a_mode                       (chipset_select),
+        // In FE2010A mode, use FE2010A's interrupt/timer/speaker outputs
+        .fe2010a_interrupt_to_cpu           (fe_interrupt_to_cpu),
+        .fe2010a_timer_counter_out          (fe_timer_counter_out),
+        .fe2010a_speaker_out                (fe_speaker_out),
+        .fe2010a_chipset_data_out           (fe_chipset_data_out),
+        .fe2010a_chipset_data_out_valid     (fe_chipset_data_out_valid),
         .interrupt_to_cpu                   (interrupt_to_cpu),
         .interrupt_acknowledge_n            (interrupt_acknowledge_n),
         .dma_chip_select_n                  (dma_chip_select_n),

@@ -46,5 +46,9 @@ set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "rtl/KF
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "rtl/KFPC-XT/HDL/Peripherals.sv"]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "rtl/KFPC-XT/HDL/Chipset.sv"]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "rtl/KFPC-XT/HDL/Bus_Arbiter.sv"]
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "rtl/KFPC-XT/HDL/FE2010A/FE2010A.v"]
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "rtl/KFPC-XT/HDL/FE2010A/fe2010a_ppi.v"]
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "rtl/KFPC-XT/HDL/FE2010A/fe2010a_clkgen.v"]
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "rtl/KFPC-XT/HDL/FE2010A/fe2010a_waitgen.v"]
 #
 #pll.qip is added in every respective board folder/top.qip

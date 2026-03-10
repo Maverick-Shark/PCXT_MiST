@@ -256,6 +256,7 @@ module PCXT
         "P3Og,EXPER.YPbPr,Off,On;",
 		//
 		"P4,Hardware;",
+		"P4Ot,Chipset,Standard,Faraday FE2010A;",
 		"P4OB,Lo-tech 2MB EMS,Enabled,Disabled;",
 		"P4OCD,EMS Frame,C000,D000,E000;",
         "P4Op,A000 UMB,Enabled,Disabled;",           //[51]
@@ -316,6 +317,7 @@ module PCXT
     //wire [1:0] ar = status[9:8];
     //wire border = status[29] | xtctl[1];
 	wire a000h = ~status[51] & ~xtctl[6];
+    wire chipset_select = status[55];  // 0=Standard, 1=Faraday FE2010A
     wire composite_on = status[44];
     wire vga_composite = status[47];
 
@@ -1134,6 +1136,7 @@ module PCXT
 		.color							    (color),
 		.reset                              (reset_cpu),
 		.sdram_reset                        (reset_sdram),
+		.chipset_select                     (chipset_select),
 		.cpu_address                        (cpu_address),
 		.cpu_data_bus                       (cpu_data_bus),
 		.processor_status                   (processor_status),
