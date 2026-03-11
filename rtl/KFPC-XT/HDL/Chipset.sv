@@ -92,6 +92,8 @@ module CHIPSET #(
         input   logic   [7:0]   port_c_in,
         output  logic   [7:0]   port_c_out,
         output  logic   [7:0]   port_c_io,
+        // DIP switch value (for FE2010A switch register initialization)
+        input   logic   [7:0]   sw,
         input   logic           ps2_clock,
         input   logic           ps2_data,
         output  logic           ps2_clock_out,
@@ -377,7 +379,8 @@ module CHIPSET #(
         .speaker_out                (fe_speaker_out),
 
         // Config inputs
-        .vid_in                     (2'b00),    // TODO: connect to actual video type
+        .vid_in                     (sw[5:4]),  // Video type from DIP switch bits 5:4
+        .sw_default                 (sw),       // Full DIP switch for switch register init
 
         // Config outputs
         .clk_select_out             (fe_clk_select),

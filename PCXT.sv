@@ -257,6 +257,7 @@ module PCXT
 		//
 		"P4,Hardware;",
 		"P4Ot,Chipset,Standard,Faraday FE2010A;",
+		"P4Ouv,Floppy Drives,1 Drive,2 Drives,None;",
 		"P4OB,Lo-tech 2MB EMS,Enabled,Disabled;",
 		"P4OCD,EMS Frame,C000,D000,E000;",
         "P4Op,A000 UMB,Enabled,Disabled;",           //[51]
@@ -1111,10 +1112,33 @@ module PCXT
 
     logic   [7:0]   port_b_out;
     logic   [7:0]   port_c_in;
-    reg     [7:0]   sw;
 
-    assign  sw = mda_mode ? 8'b00111101 : 8'b00101101; // PCXT DIP Switches (MDA or CGA 80)
-    assign  port_c_in[3:0] = port_b_out[3] ? sw[7:4] : sw[3:0];
+    // ========================================================================
+    // DIP Switch Generation
+    // ========================================================================
+    //
+    // IBM XT DIP switch encoding (directly from hardware):
+    //   SW1   (bit 0): Not used / POST loop
+    //   SW2   (bit 1): 8087 coprocessor (0=not installed)
+    //   SW3-4 (bits 3:2): System memory on motherboard (11=640KB)
+    //   SW5-6 (bits 5:4): Display type (10=CGA 80col, 11=MDA)
+    //   SW7-8 (bits 7:6): Number of floppy drives (00=1, 01=2)
+    //
+    // status[57:56] encodes floppy count from OSD:
+    //   00 = 1 Drive, 01 = 2 Drives, 10 = None
+    //
+
+    wire [5:0] sw_base;
+    wire [1:0] sw_floppy;
+    wire [7:0] sw;
+    wire [1:0] floppy_cfg = status[57:56];
+
+    assign sw_base   = mda_mode ? 6'b111101 : 6'b101101; // MDA or CGA 80col, 640KB, no 8087
+    assign sw_floppy = (floppy_cfg == 2'b01) ? 2'b01 : 2'b00; // 2 drives → 01, else → 00
+    assign sw = {sw_floppy, sw_base};
+
+    // Standard chipset: PPI Port C read multiplexing via Port B bit 3
+    assign port_c_in[3:0] = port_b_out[3] ? sw[7:4] : sw[3:0];
 
     wire tandy_bios_flag = bios_write_n ? tandy_mode : tandy_bios_write;
 
@@ -1199,6 +1223,7 @@ module PCXT
 	//  .terminal_count_n                   (terminal_count_n)
 		.port_b_out                         (port_b_out),
 		.port_c_in                          (port_c_in),
+		.sw                                 (sw),
 		.port_b_in                          (port_b_out),
 		.speaker_out                        (speaker_out),
 		.ps2_clock                          (device_clock),

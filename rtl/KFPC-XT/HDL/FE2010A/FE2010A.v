@@ -126,6 +126,7 @@ module FE2010A (
     // Configuration inputs (from physical pins or OSD)
     // ========================================================================
     input  wire [1:0]  vid_in,             // VID0, VID1 display type
+    input  wire [7:0]  sw_default,         // Default DIP switch value (from OSD config)
 
     // ========================================================================
     // Configuration outputs (active signals from config register 0x63)
@@ -637,6 +638,7 @@ module FE2010A (
         .vid_in                     (vid_in),
         .io_channel_check           (io_channel_check),
         .ram_parity_check           (1'b0),  // No RAM parity in SRAM/SDRAM systems
+        .sw_default                 (sw_default),
 
         // Configuration register interface
         .config_write               (config_write),

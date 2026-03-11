@@ -71,6 +71,7 @@ module fe2010a_ppi (
     input  wire [1:0]  vid_in,            // VID0, VID1 from display type pins
     input  wire        io_channel_check,  // I/O CH CHK from expansion bus
     input  wire        ram_parity_check,  // RAM parity error
+    input  wire [7:0]  sw_default,        // Default DIP switch value (from OSD config)
 
     // ========================================================================
     // Configuration register interface (address == 2'b11 = port 0x63)
@@ -212,7 +213,7 @@ module fe2010a_ppi (
 
     always @(posedge clock or posedge reset) begin
         if (reset)
-            switch_reg <= 8'h00;
+            switch_reg <= sw_default;  // Initialize from OSD DIP switch config
         else if (~chip_select_n & ~write_enable_n & (address == 2'b10) & ~config_locked)
             switch_reg <= data_bus_in;
     end
