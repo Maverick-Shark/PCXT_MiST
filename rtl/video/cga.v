@@ -92,14 +92,9 @@ module cga(
     wire blink_enabled;
 
     wire hsync_int;
-    wire hblank_crtc;
-    wire vblank_crtc;
     wire vsync_l;
-    wire vsync_sd_l;
-    wire vblank_sd;
     wire cursor;
     wire display_enable;
-    wire display_enable_sd;
 
     // Two different clocks from the sequencer
     wire hclk;
@@ -107,6 +102,7 @@ module cga(
 
     wire[13:0] crtc_addr;
     wire[4:0] row_addr;
+    wire line_reset;
     wire pixel_addr13;
     wire pixel_addr14;
 
@@ -133,16 +129,15 @@ module cga(
     //reg[1:0] wait_state = 2'd0;
     //reg bus_rdy_latch; 
 
-    assign de_o = scandoubler ? display_enable_sd : display_enable;
-    assign hblank = scandoubler ? ~display_enable_sd : hblank_crtc;
-
+    assign de_o = display_enable;
+    
     assign ram_a = {4'h0, pixel_addr14, pixel_addr13, crtc_addr[11:0],
                     vram_read_a0};
 
     assign ram_1_d = ram_d;
     //assign ram_1_d = 8'hFF;
     assign ram_we_l = vram_read;
-
+    
 
     // Synchronize ISA bus control lines to our clock
     always @ (posedge clk)
@@ -153,10 +148,8 @@ module cga(
         bus_iow_synced_l <= bus_iow_l;
     end
 
-    // Some modules need a non-inverted vsync trigger.
-    // In scandoubled mode use VSYNC synthesized by the scandoubler.
-    assign vsync = scandoubler ? ~vsync_sd_l : ~vsync_l;
-    assign vblank = scandoubler ? vblank_sd : vblank_crtc;
+    // Some modules need a non-inverted vsync trigger
+    assign vsync = ~vsync_l;
 
     // Mapped IO
     assign crtc_cs = (bus_a[14:3] == IO_BASE_ADDR[14:3]) & ~bus_aen; // 3D4/3D5
@@ -287,9 +280,9 @@ module cga(
         .DI(bus_d),
         .DO(bus_out_crtc),
         
-        .hblank(hblank_crtc),
-        .vblank(vblank_crtc),
-        .line_reset(),
+        .hblank(hblank),
+        .vblank(vblank),
+        .line_reset(line_reset),
         
         .VSYNC(vsync_l),
         .HSYNC(hsync_int),
@@ -440,28 +433,24 @@ module cga(
     );
 	`endif
 
-    video_scandoubler #(
-        .PIXEL_WIDTH(4),
-        .H_TOTAL_MAX(912)
-    ) scandoubler_inst (
+    wire cga_de;
+    assign cga_de = ~(hblank | vblank);
+    
+    cga_scandoubler scandoubler_inst (
         .clk(clk),
-        .ce_pix(clkdiv[0]),
-        .ce_2x(1'b1),
-        .scandouble_en(scandoubler),
-        .pixel_in(video),
-        .hsync_in(hsync_int),
-        .vsync_in(vsync_l),
-        .vblank_in(vblank_crtc),
-        .display_enable_in(display_enable),
-        .pixel_out(dbl_video),
-        .hsync_out(dbl_hsync),
-        .vsync_out(vsync_sd_l),
-        .vblank_out(vblank_sd),
-        .display_enable_out(display_enable_sd)
+        .line_reset(line_reset),
+    //  .video(video),		  
+        .video(cga_de ? video : 4'b0000 ),		  
+        .dbl_hsync(dbl_hsync),
+        .dbl_video(dbl_video)
     );
 
-    assign hsync_sd = dbl_hsync;
-    assign vsync_sd = vsync;
-    assign video_sd = dbl_video;
+    // assign hsync_sd = scandoubler ? dbl_hsync : ~(vsync ^ hsync);    //mist_video will do the csync      
+    // assign vsync_sd = scandoubler ? vsync     : 1'b1;
+    // assign video_sd = scandoubler ? dbl_video : video;
+
+    assign hsync_sd = scandoubler ? dbl_hsync : hsync;          
+    assign vsync_sd = scandoubler ? vsync     : vsync;
+    assign video_sd = scandoubler ? dbl_video : video;
 
 endmodule

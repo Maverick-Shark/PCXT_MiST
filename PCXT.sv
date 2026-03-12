@@ -312,7 +312,7 @@ module PCXT
 
     //wire composite = status[52] | xtctl[0];
 	//wire [1:0] scale = status[2:1];
-    wire mda_mode = status[4] | xtctl[5];
+    wire hgc_mode = status[4] | xtctl[5];
     wire [1:0] hgc_phosphor = status[49:48]; // 0=green, 1=amber, 2=b&w
     wire [2:0] screen_mode = status[16:14];
     //wire [1:0] ar = status[9:8];
@@ -333,7 +333,7 @@ module PCXT
 
 
     //reg [1:0]   scale_video_ff;
-    reg         mda_mode_video_ff;
+    reg         hgc_mode_video_ff;
     reg [2:0]   screen_mode_video_ff;
     //reg         border_video_ff;
 	 
@@ -362,7 +362,7 @@ module PCXT
     always @(posedge CLK_VIDEO)
     begin
         //scale_video_ff          <= scale;
-        mda_mode_video_ff       <= mda_mode;
+        hgc_mode_video_ff       <= hgc_mode;
         screen_mode_video_ff    <= screen_mode;
         //border_video_ff         <= border;
         //VIDEO_ARX               <= (!ar) ? 12'd4 : (ar - 1'd1);
@@ -522,7 +522,7 @@ module PCXT
 
     wire clk_100;
     wire clk_28_636;
-    wire clk_56_875;
+    wire clk_57_272;
     reg clk_25 = 1'b0;
     reg clk_14_318 = 1'b0;
     reg clk_9_54 = 1'b0;
@@ -555,7 +555,7 @@ module PCXT
 			.refclk(CLK_50M),
 			.rst(0),
 			.outclk_0(clk_28_636),		//28.636                CLOCK_VGA_CGA
-			.outclk_1(clk_56_875),		//56.875 -> 57.272      CLOCK_VGA_MDA
+			.outclk_1(clk_57_272),		//57.272                 CLOCK_VGA_HGC
 			.locked()
 		);
 
@@ -577,7 +577,7 @@ module PCXT
 			.inclk0(CLK_50M),
 			.areset(1'b0),
 			.c0(clk_28_636),		//28.636 -> 28.636      CLOCK_VGA_CGA
-			.c1(clk_56_875),		//56.875 -> 57.272      CLOCK_VGA_MDA
+			.c1(clk_57_272),		//57.272                 CLOCK_VGA_HGC
 			.locked()
 		);
 
@@ -1121,7 +1121,7 @@ module PCXT
     //   SW1   (bit 0): Not used / POST loop
     //   SW2   (bit 1): 8087 coprocessor (0=not installed)
     //   SW3-4 (bits 3:2): System memory on motherboard (11=640KB)
-    //   SW5-6 (bits 5:4): Display type (10=CGA 80col, 11=MDA)
+    //   SW5-6 (bits 5:4): Display type (10=CGA 80col, 11=HGC/MDA)
     //   SW7-8 (bits 7:6): Number of floppy drives (00=1, 01=2)
     //
     // status[57:56] encodes floppy count from OSD:
@@ -1133,7 +1133,7 @@ module PCXT
     wire [7:0] sw;
     wire [1:0] floppy_cfg = status[57:56];
 
-    assign sw_base   = mda_mode ? 6'b111101 : 6'b101101; // MDA or CGA 80col, 640KB, no 8087
+    assign sw_base   = hgc_mode ? 6'b111101 : 6'b101101; // HGC or CGA 80col, 640KB, no 8087
     assign sw_floppy = (floppy_cfg == 2'b01) ? 2'b01 : 2'b00; // 2 drives → 01, else → 00
     assign sw = {sw_floppy, sw_base};
 
@@ -1171,12 +1171,12 @@ module PCXT
 		.splashscreen                       (splashscreen),
 	//	.std_hsyncwidth                     (std_hsyncwidth),
 	//	.composite                          (composite),
-		.video_output                       (mda_mode_video_ff),
+		.video_output                       (hgc_mode_video_ff),
 		.clk_vga_cga                        (clk_28_636),
 		.enable_cga                         (1'b1),
-		.clk_vga_mda                        (clk_56_875),
-		.enable_mda                         (1'b1),
-		.mda_rgb                            (hgc_phosphor),
+		.clk_vga_hgc                        (clk_57_272),
+		.enable_hgc                         (1'b1),
+		.hgc_rgb                            (hgc_phosphor),
 	//	.hgc_grph_mode                      (),
 	//	.hgc_grph_page                      (),
 	//	.de_o                               (VGA_DE),
@@ -1521,9 +1521,9 @@ module PCXT
     wire [17:0] rgb_18b;
     wire clk_vid;
 
-    assign CLK_VIDEO = clk_56_875;
+    assign CLK_VIDEO = clk_57_272;
     assign ce_pixel = 1'b1;
-    assign clk_vid = mda_mode_video_ff ? clk_56_875 : clk_28_636;
+    assign clk_vid = hgc_mode_video_ff ? clk_57_272 : clk_28_636;
 
     wire color = (screen_mode_video_ff == 3'd0);
 
@@ -1551,7 +1551,7 @@ module PCXT
     // mist_video #( .SD_HCNT_WIDTH(10) ) mist_video    //.OSD_COLOR(3'd5),
     mist_video #( .COLOR_DEPTH(6), .OUT_COLOR_DEPTH(VGA_BITS), .BIG_OSD(BIG_OSD)) mist_video
 	(
-		.clk_sys     ( clk_56_875 ),
+		.clk_sys     ( clk_57_272 ),
 
 		// OSD SPI interface
 		.SPI_SCK     ( SPI_SCK    ),
@@ -1626,8 +1626,8 @@ module PCXT
         .BLKPOL (1)
     ) u_credits(
         .rst        ( reset       ),
-        .clk        ( clk_56_875  ), //clk_chipset not good  
-        //.pxl_cen    ( mda_mode_video_ff ? clk_14_318 : clk_56_875   ), // clk_14_318 ok in MDA, clk_28_636 or clk_56_875 better in CGA
+        .clk        ( clk_57_272  ), //clk_chipset not good  
+        //.pxl_cen    ( hgc_mode_video_ff ? clk_14_318 : clk_57_272   ), // clk_14_318 ok in MDA, clk_28_636 or clk_57_272 better in CGA
         .pxl_cen    ( clk_14_318  ), 
         
         // input image
@@ -1664,7 +1664,7 @@ module PCXT
 
     // osd #(.OSD_COLOR(3'd5), .OSD_AUTO_CE(1'b0) ) osd
     // (
-    // 	.clk_sys ( clk_56_875 ),	// clk_56_875, clk_28_636, clk_56_875 /auto 0/clk_28_636/clk_56_875/clk_56_875
+    // 	.clk_sys ( clk_57_272 ),	// clk_57_272, clk_28_636, clk_57_272 /auto 0/clk_28_636/clk_57_272/clk_57_272
     // 	.rotate  ( 2'b00      ),
     // 	.ce      ( clk_14_318 ),	// clk_28_636, 1'b0      , clk_14_318 /auto 0/clk_14_318/clk_28_636/clk_14_318
     // 	.SPI_DI  ( SPI_DI     ),
