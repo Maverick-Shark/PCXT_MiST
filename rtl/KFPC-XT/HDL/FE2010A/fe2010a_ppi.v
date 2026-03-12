@@ -66,6 +66,12 @@ module fe2010a_ppi (
     output wire        disable_io_check,  // Control Register bit 5
 
     // ========================================================================
+    // Keyboard control outputs (directly from Control Register)
+    // ========================================================================
+    output wire        enable_kbd_clock,  // Control Register bit 6
+    output wire        clear_keyboard,    // Control Register bit 7 (active high pulse)
+
+    // ========================================================================
     // Switch register external inputs
     // ========================================================================
     input  wire [1:0]  vid_in,            // VID0, VID1 from display type pins
@@ -170,8 +176,8 @@ module fe2010a_ppi (
     // control_reg[3] is not used in FE2010A
     assign disable_parity   = control_reg[4];
     assign disable_io_check = control_reg[5];
-    // control_reg[6] = Enable Keyboard Clock (directly used by keyboard interface)
-    // control_reg[7] = Clear Keyboard Data Register (used in keyboard logic above)
+    assign enable_kbd_clock = control_reg[6];
+    assign clear_keyboard   = control_reg[7];
 
 
     // ========================================================================

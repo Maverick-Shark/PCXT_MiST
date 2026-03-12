@@ -23,6 +23,13 @@ module PERIPHERALS #(
         input   logic           fe2010a_speaker_out,
         input   logic   [7:0]   fe2010a_chipset_data_out,
         input   logic           fe2010a_chipset_data_out_valid,
+        // FE2010A keyboard clear (active when fe2010a_mode=1)
+        input   logic           fe2010a_clear_keycode,
+        // FE2010A PPI enable keyboard clock (bit 6 of port 0x61)
+        input   logic           fe2010a_enable_kbd_clock,
+        // Keyboard raw signals exposed for FE2010A
+        output  logic   [7:0]   keyboard_scancode,
+        output  logic           keyboard_scancode_irq,
         // CPU
         output  logic           interrupt_to_cpu,
         // Bus Arbiter
@@ -442,8 +449,14 @@ module PERIPHERALS #(
     logic           prev_ps2_reset_n;
     logic           lock_recv_clock;
 
-    wire    clear_keycode = port_b_out[7];
-    wire    ps2_reset_n   = ~tandy_video ? port_b_out[6] : 1'b1;
+    wire    clear_keycode = fe2010a_mode ? fe2010a_clear_keycode : port_b_out[7];
+    // In FE2010A mode, keyboard enable comes from FE2010A PPI control reg bit 6
+    // In standard mode, it comes from KF8255 port_b_out[6]
+    wire    ps2_reset_n   = ~tandy_video ? (fe2010a_mode ? fe2010a_enable_kbd_clock : port_b_out[6]) : 1'b1;
+
+    // Expose raw keyboard signals for FE2010A
+    assign  keyboard_scancode     = keycode;
+    assign  keyboard_scancode_irq = keybord_irq;
 
     always_ff @(posedge clock, posedge reset)
     begin

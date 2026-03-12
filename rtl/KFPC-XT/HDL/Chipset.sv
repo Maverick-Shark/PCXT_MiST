@@ -304,13 +304,12 @@ module CHIPSET #(
     logic   [1:0]   fe_clk_select;
     logic           fe_fast_mode;
     logic           fe_nmi_enable;
+    logic           fe_clear_keyboard;
+    logic           fe_enable_kbd_clock;
 
-    // Keyboard data for FE2010A PPI (from KFPS2KB in Peripherals)
-    // These are provided by Peripherals via port_a_out when in standard mode.
-    // In FE2010A mode, keyboard data comes through the same PS/2 converter
-    // but is handled internally by the FE2010A PPI.
-    // We pass port_a_out (which Peripherals fills with keycode) to FE2010A.
-    // The keyboard IRQ comes from Peripherals' internal keybord_interrupt.
+    // Keyboard raw signals from Peripherals (KFPS2KB output)
+    logic   [7:0]   keyboard_scancode;
+    logic           keyboard_scancode_irq;
 
     FE2010A u_FE2010A (
         .clock                      (clock),
@@ -370,9 +369,9 @@ module CHIPSET #(
         .io_channel_check           (io_channel_check),
         .io_channel_ready           (io_channel_ready & memory_access_ready & tandy_snd_rdy),
 
-        // Keyboard (from KFPS2KB via port_a_out)
-        .keyboard_data              (port_a_out),
-        .keyboard_irq               (1'b0),     // Handled via Peripherals keyboard path
+        // Keyboard (raw signals from KFPS2KB via Peripherals)
+        .keyboard_data              (keyboard_scancode),
+        .keyboard_irq               (keyboard_scancode_irq),
 
         // Timer / Speaker
         .timer_counter_out          (fe_timer_counter_out),
@@ -387,6 +386,10 @@ module CHIPSET #(
         .fast_mode                  (fe_fast_mode),
         .ram_size_cfg               (),
         .nmi_enable                 (fe_nmi_enable),
+
+        // Keyboard clear output (back to KFPS2KB via Peripherals)
+        .clear_keyboard             (fe_clear_keyboard),
+        .enable_kbd_clock           (fe_enable_kbd_clock),
 
         // Chipset data output
         .chipset_data_out           (fe_chipset_data_out),
@@ -428,6 +431,11 @@ module CHIPSET #(
         .fe2010a_speaker_out                (fe_speaker_out),
         .fe2010a_chipset_data_out           (fe_chipset_data_out),
         .fe2010a_chipset_data_out_valid     (fe_chipset_data_out_valid),
+        // FE2010A keyboard clear and raw signals
+        .fe2010a_clear_keycode              (fe_clear_keyboard),
+        .fe2010a_enable_kbd_clock           (fe_enable_kbd_clock),
+        .keyboard_scancode                  (keyboard_scancode),
+        .keyboard_scancode_irq              (keyboard_scancode_irq),
         .interrupt_to_cpu                   (interrupt_to_cpu),
         .interrupt_acknowledge_n            (interrupt_acknowledge_n),
         .dma_chip_select_n                  (dma_chip_select_n),

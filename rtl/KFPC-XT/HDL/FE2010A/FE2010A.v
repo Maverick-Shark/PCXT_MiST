@@ -141,6 +141,12 @@ module FE2010A (
     output wire        nmi_enable,         // NMI enable (bit 7 of NMI mask register 0xA0)
 
     // ========================================================================
+    // Keyboard clear output (from PPI control register bit 7)
+    // ========================================================================
+    output wire        clear_keyboard,     // Active-high: clears keyboard scancode buffer
+    output wire        enable_kbd_clock,   // From PPI control reg bit 6: enables PS/2 clock
+
+    // ========================================================================
     // Internal chipset data bus output (for Peripherals.sv data bus mux)
     // ========================================================================
     output reg  [7:0]  chipset_data_out,
@@ -633,6 +639,10 @@ module FE2010A (
         // Parity / I/O check
         .disable_parity             (ppi_disable_parity),
         .disable_io_check           (ppi_disable_io_check),
+
+        // Keyboard control outputs
+        .enable_kbd_clock           (enable_kbd_clock),
+        .clear_keyboard             (clear_keyboard),
 
         // Switch register inputs
         .vid_in                     (vid_in),
